@@ -1,6 +1,10 @@
 library(ggplot2)
 library(dplyr)
+conflicted::conflict_prefer("filter", "dplyr")
+conflicted::conflict_prefer("pull", "dplyr") # in case git2r is loaded
 library(tidyr)
+conflicted::conflict_prefer("extract", "tidyr")
+
 options(digits = 3, dplyr.print_min = 6, dplyr.print_max = 6)
 
 # suppress startup message
@@ -9,11 +13,9 @@ library(maps)
 knitr::opts_chunk$set(
   comment = "#>",
   collapse = TRUE,
-  fig.path = paste0("_figures/", chapter, "/"),
   fig.show = "hold",
   dpi = 300,
-  cache = TRUE,
-  cache.path = paste0("_cache/", chapter, "/")
+  cache = TRUE
 )
 
 is_latex <- function() {
@@ -102,10 +104,10 @@ include_graphics <- function(x, options) {
   }
 
   paste0("  \\includegraphics",
-    opts_str,
-    "{", knitr:::sans_ext(x), "}",
-    if (options$fig.cur != options$fig.num) "%",
-    "\n"
+         opts_str,
+         "{", tools::file_path_sans_ext(x), "}",
+         if (options$fig.cur != options$fig.num) "%",
+         "\n"
   )
 }
 
@@ -115,4 +117,29 @@ knitr_first_plot <- function(x) {
 knitr_last_plot <- function(x) {
   x$fig.show != "hold" || x$fig.cur == x$fig.num
 }
+
+
+# control output lines ----------------------------------------------------
+
+hook_output <- knitr::knit_hooks$get("output")
+knitr::knit_hooks$set(output = function(x, options) {
+  lines <- options$output.lines
+  if (is.null(lines)) {
+    return(hook_output(x, options))  # pass to default hook
+  }
+
+  x <- unlist(strsplit(x, "\n"))
+
+  if (length(lines)==1) {        # first n lines
+    if (length(x) > lines) {
+      # truncate the output, but add ....
+      x <- c(head(x, lines), more)
+    }
+  } else {
+    x <- x[lines] # don't add ... when we get vector input
+  }
+  # paste these lines together
+  x <- paste(c(x, ""), collapse = "\n")
+  hook_output(x, options)
+})
 
